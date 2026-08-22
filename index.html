@@ -616,6 +616,10 @@ function doPost(e) {
             if (/^P2\d+/i.test(code) || /^\d{11}$/.test(code)) {
                 return { name: 'POS Indonesia', code: 'pos', color: 'bg-amber-100 text-amber-700 border-amber-200' };
             }
+              // POS Indonesia: P2xxx | 11 digit | SHPE prefix
+            if (/^P2\d+/i.test(c) || /^\d{11}$/.test(c) || /^SHPE/i.test(c)) {
+                return { name: 'POS Indonesia', short: 'POS', color: 'amber', icon: 'fa-envelope-open-text' };
+            }
             if (/^(TIKI|03|66)\d+/i.test(code)) {
                 return { name: 'TIKI', code: 'tiki', color: 'bg-sky-100 text-sky-800 border-sky-200' };
             }
