@@ -165,17 +165,31 @@
                         <i class="fa-solid fa-filter text-brand-500"></i>
                         <span>Pilihan Resi:</span>
                     </label>
-                    <select id="filterCourierSelect" onchange="onCourierFilterChange()" class="w-full sm:w-48 text-xs font-semibold bg-white border border-brand-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 rounded-lg px-2.5 py-1.5 text-slate-800 shadow-xs transition">
+                    <select id="filterCourierSelect" onchange="onCourierFilterChange()" class="w-full sm:w-56 text-xs font-semibold bg-white border border-brand-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 rounded-lg px-2.5 py-1.5 text-slate-800 shadow-xs transition">
                         <option value="ALL">Semua Jenis Resi / Kurir</option>
-                        <option value="J&T Express">J&T Express (JP/JX/TJ/EZ)</option>
-                        <option value="Shopee Xpress">Shopee Xpress (SPX/SPXID)</option>
-                        <option value="JNE">JNE Express (TJNE/CGK)</option>
-                        <option value="SiCepat">SiCepat Express (00.../TKP)</option>
-                        <option value="Anteraja">Anteraja (1000...)</option>
-                        <option value="ID Express">ID Express (IDE...)</option>
-                        <option value="Ninja Xpress">Ninja Xpress (NLID...)</option>
-                        <option value="Lazada Express">Lazada Express (LEX...)</option>
-                        <option value="POS Indonesia">POS Indonesia (P2...)</option>
+                        <option value="JNE Express">JNE Express (jne)</option>
+                        <option value="POS Indonesia">POS Indonesia (pos)</option>
+                        <option value="J&T Express">J&T Express (jnt)</option>
+                        <option value="J&T Cargo">J&T Cargo (jnt_cargo)</option>
+                        <option value="SiCepat">SiCepat (sicepat)</option>
+                        <option value="TIKI">TIKI (tiki)</option>
+                        <option value="AnterAja">AnterAja (anteraja)</option>
+                        <option value="Wahana">Wahana (wahana)</option>
+                        <option value="Ninja Express">Ninja Express (ninja)</option>
+                        <option value="Lion Parcel">Lion Parcel (lion)</option>
+                        <option value="PCP Express">PCP Express (pcp)</option>
+                        <option value="JET Express">JET Express (jet)</option>
+                        <option value="REX Express">REX Express (rex)</option>
+                        <option value="First Logistics">First Logistics (first)</option>
+                        <option value="ID Express">ID Express (ide)</option>
+                        <option value="Shopee Express">Shopee Express (spx)</option>
+                        <option value="KGXpress">KGXpress (kgx)</option>
+                        <option value="SAP Express">SAP Express (sap)</option>
+                        <option value="RPX">RPX Express (rpx)</option>
+                        <option value="Lazada Express">Lazada Express (lex)</option>
+                        <option value="Indah Cargo">Indah Cargo (indah_cargo)</option>
+                        <option value="Dakota Cargo">Dakota Cargo (dakota)</option>
+                        <option value="Kurir Rekomendasi">Kurir Rekomendasi Tokopedia (kurir_tokopedia)</option>
                     </select>
                 </div>
             </div>
@@ -543,38 +557,77 @@ function doPost(e) {
         function detectCourier(resi) {
             const code = resi.trim().toUpperCase();
             
-            if (/^JP\d+/i.test(code) || /^JX\d+/i.test(code) || /^TJ\d+/i.test(code) || /^EZ\d+/i.test(code)) {
-                return { name: 'J&T Express', color: 'bg-red-100 text-red-700 border-red-200' };
+            if (/^(JTC|300)\d+/i.test(code)) {
+                return { name: 'J&T Cargo', code: 'jnt_cargo', color: 'bg-red-200 text-red-800 border-red-300' };
             }
-            if (/^SPXID\d+/i.test(code) || /^SPX\d+/i.test(code)) {
-                return { name: 'Shopee Xpress', color: 'bg-orange-100 text-orange-700 border-orange-200' };
+            if (/^(JP|JX|TJ|EZ|JT)\d+/i.test(code)) {
+                return { name: 'J&T Express', code: 'jnt', color: 'bg-red-100 text-red-700 border-red-200' };
             }
-            if (/^00\d{10}/.test(code) || /^TKP\d+/i.test(code) || /^SIG\d+/i.test(code)) {
-                return { name: 'SiCepat', color: 'bg-red-50 text-red-600 border-red-200' };
+            if (/^SPX(ID)?\d+/i.test(code)) {
+                return { name: 'Shopee Express', code: 'spx', color: 'bg-orange-100 text-orange-700 border-orange-200' };
             }
-            if (/^TJNE\d+/i.test(code) || /^CGK\d+/i.test(code) || /^\d{15,16}$/.test(code)) {
-                return { name: 'JNE', color: 'bg-blue-100 text-blue-700 border-blue-200' };
+            if (/^00\d{10}/.test(code) || /^(SIG|SICEPAT)\d+/i.test(code)) {
+                return { name: 'SiCepat', code: 'sicepat', color: 'bg-red-50 text-red-600 border-red-200' };
             }
-            if (/^1000\d+/i.test(code) || /^1001\d+/i.test(code) || /^\d{14}$/.test(code)) {
-                return { name: 'Anteraja', color: 'bg-pink-100 text-pink-700 border-pink-200' };
+            if (/^(TJNE|CGK|JNE)\d+/i.test(code) || /^\d{15,16}$/.test(code)) {
+                return { name: 'JNE Express', code: 'jne', color: 'bg-blue-100 text-blue-700 border-blue-200' };
+            }
+            if (/^(1000|1001|SAT)\d+/i.test(code) || /^\d{14}$/.test(code)) {
+                return { name: 'AnterAja', code: 'anteraja', color: 'bg-pink-100 text-pink-700 border-pink-200' };
             }
             if (/^IDE\d+/i.test(code)) {
-                return { name: 'ID Express', color: 'bg-rose-100 text-rose-700 border-rose-200' };
+                return { name: 'ID Express', code: 'ide', color: 'bg-rose-100 text-rose-700 border-rose-200' };
             }
-            if (/^NLID\d+/i.test(code) || /^SHP\d+/i.test(code)) {
-                return { name: 'Ninja Xpress', color: 'bg-stone-100 text-stone-800 border-stone-200' };
+            if (/^(NLID|SHP|NV)\d+/i.test(code)) {
+                return { name: 'Ninja Express', code: 'ninja', color: 'bg-stone-100 text-stone-800 border-stone-200' };
             }
-            if (/^LEX\d+/i.test(code) || /^LXAD\d+/i.test(code)) {
-                return { name: 'Lazada Express', color: 'bg-purple-100 text-purple-700 border-purple-200' };
+            if (/^(LEX|LXAD)\d+/i.test(code)) {
+                return { name: 'Lazada Express', code: 'lex', color: 'bg-purple-100 text-purple-700 border-purple-200' };
             }
             if (/^P2\d+/i.test(code) || /^\d{11}$/.test(code)) {
-                return { name: 'POS Indonesia', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+                return { name: 'POS Indonesia', code: 'pos', color: 'bg-amber-100 text-amber-700 border-amber-200' };
             }
-            if (/^GK-/i.test(code) || /^GL-/i.test(code)) {
-                return { name: 'Gojek / Grab', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+            if (/^(TIKI|03|66)\d+/i.test(code)) {
+                return { name: 'TIKI', code: 'tiki', color: 'bg-sky-100 text-sky-800 border-sky-200' };
+            }
+            if (/^(WAHANA|WHN)\d+/i.test(code) || /^0\d{8,10}$/.test(code)) {
+                return { name: 'Wahana', code: 'wahana', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+            }
+            if (/^(LP|LION)\d+/i.test(code) || /^11\d{9}/.test(code)) {
+                return { name: 'Lion Parcel', code: 'lion', color: 'bg-rose-100 text-rose-800 border-rose-200' };
+            }
+            if (/^(SAP)\d+/i.test(code)) {
+                return { name: 'SAP Express', code: 'sap', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' };
+            }
+            if (/^(PCP)\d+/i.test(code)) {
+                return { name: 'PCP Express', code: 'pcp', color: 'bg-teal-100 text-teal-800 border-teal-200' };
+            }
+            if (/^(JET)\d+/i.test(code)) {
+                return { name: 'JET Express', code: 'jet', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' };
+            }
+            if (/^(REX)\d+/i.test(code)) {
+                return { name: 'REX Express', code: 'rex', color: 'bg-lime-100 text-lime-800 border-lime-200' };
+            }
+            if (/^(FL|FIRST)\d+/i.test(code)) {
+                return { name: 'First Logistics', code: 'first', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+            }
+            if (/^(KGX)\d+/i.test(code)) {
+                return { name: 'KGXpress', code: 'kgx', color: 'bg-slate-200 text-slate-800 border-slate-300' };
+            }
+            if (/^(RPX)\d+/i.test(code)) {
+                return { name: 'RPX', code: 'rpx', color: 'bg-amber-200 text-amber-900 border-amber-300' };
+            }
+            if (/^(INDAH)\d+/i.test(code)) {
+                return { name: 'Indah Cargo', code: 'indah_cargo', color: 'bg-orange-200 text-orange-900 border-orange-300' };
+            }
+            if (/^(DKT|DAKOTA)\d+/i.test(code)) {
+                return { name: 'Dakota Cargo', code: 'dakota', color: 'bg-blue-200 text-blue-900 border-blue-300' };
+            }
+            if (/^(TKP|TOKO)\d+/i.test(code)) {
+                return { name: 'Kurir Rekomendasi', code: 'kurir_tokopedia', color: 'bg-green-100 text-green-800 border-green-200' };
             }
 
-            return { name: 'Umum / Lainnya', color: 'bg-slate-100 text-slate-700 border-slate-200' };
+            return { name: 'Umum / Lainnya', code: 'other', color: 'bg-slate-100 text-slate-700 border-slate-200' };
         }
 
         // --- STREAMING_CHUNK:Handling data state persistence and CRUD operations... ---
@@ -1120,7 +1173,14 @@ function doPost(e) {
                     body: JSON.stringify(payload)
                 });
 
-                showToast(`✅ Berhasil mengirim ${currentBatch.items.length} resi ke Tab Sheet "${dateStr}"!`, 'success');
+                const countSent = currentBatch.items.length;
+
+                // OTOMATIS BERSIHKAN DATA TABEL LOKAL SETELAH BERHASIL DIKIRIM
+                currentBatch.items = [];
+                saveState();
+                renderAll();
+
+                showToast(`✅ Berhasil mengirim ${countSent} resi ke Tab Sheet "${dateStr}" & tabel lokal telah dibersihkan!`, 'success');
             } catch (err) {
                 showToast('Gagal menyinkronkan data: ' + err.message, 'error');
             }
