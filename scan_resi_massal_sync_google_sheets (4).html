@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResiScan Pro - Scan Nomor Resi Paket Bulk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Camera Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- SheetJS for XLSX export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styling for scanner video preview */
+        #reader video {
+            object-fit: cover !important;
+            border-radius: 0.75rem;
+            width: 100% !important;
+        }
+        #reader {
+            border: none !important;
+        }
+        /* Hide scrollbars for slick look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .scan-laser {
+            animation: pulse-ring 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans text-slate-800 bg-slate-50 antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- Top Header Navigation -->
+    <header class="bg-slate-900 text-white sticky top-0 z-30 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-brand-500 text-white p-2.5 rounded-xl shadow-lg shadow-brand-500/30 flex items-center justify-center">
+                    <i class="fa-solid fa-barcode text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight leading-none flex items-center gap-2">
+                        ResiScan <span class="bg-brand-500 text-[10px] uppercase font-extrabold px-1.5 py-0.5 rounded tracking-wider text-white">PRO</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 mt-0.5">Scan Resi Massal HTML5 & Auto Sync Google Sheets</p>
+                </div>
+            </div>
+
+            <!-- Quick Action Buttons Header -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button onclick="openAppsScriptGuideModal()" class="text-slate-300 hover:text-white text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg border border-slate-700 transition flex items-center gap-1.5" title="Panduan Webhook Google Sheets">
+                    <i class="fa-solid fa-file-code text-emerald-400"></i>
+                    <span class="hidden sm:inline">Panduan Sheets</span>
+                </button>
+                <button onclick="openSettingsModal()" class="text-slate-300 hover:text-white text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg border border-slate-700 transition flex items-center gap-1.5" title="Pengaturan App & Webhook">
+                    <i class="fa-solid fa-gear text-brand-400"></i>
+                    <span class="hidden sm:inline">Pengaturan</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Top Stats Dashboard Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div class="p-3 bg-brand-50 text-brand-600 rounded-lg">
+                    <i class="fa-solid fa-boxes-packing text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-slate-500">Total Ter-scan</p>
+                    <p id="statTotalScanned" class="text-2xl font-bold text-slate-800">0</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
+                    <i class="fa-solid fa-circle-check text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-slate-500">Resi Unik</p>
+                    <p id="statUniqueScanned" class="text-2xl font-bold text-emerald-600">0</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div class="p-3 bg-amber-50 text-amber-600 rounded-lg">
+                    <i class="fa-solid fa-truck text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-slate-500">Kurir Terbanyak</p>
+                    <p id="statTopCourier" class="text-base font-bold text-slate-800 truncate max-w-[100px] sm:max-w-[130px]">-</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
+                    <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-slate-500">Status Sync Sheets</p>
+                    <div id="sheetsSyncBadge" class="flex items-center gap-1.5 mt-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md w-max">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                        <span>Belum Sync</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Scanner Input Section -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <!-- Navigation Tabs for Input Mode -->
+            <div class="border-b border-slate-200 bg-slate-50/80 px-4 pt-3 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap gap-2">
+                    <button id="tabBtnCamera" onclick="switchScanMode('camera')" class="tab-btn active px-4 py-2.5 text-sm font-semibold rounded-t-lg transition flex items-center gap-2 border-b-2 border-brand-500 text-brand-600 bg-white shadow-xs">
+                        <i class="fa-solid fa-camera"></i>
+                        <span>Kamera HTML5</span>
+                    </button>
+                    <button id="tabBtnGun" onclick="switchScanMode('gun')" class="tab-btn px-4 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-900 rounded-t-lg transition flex items-center gap-2 border-b-2 border-transparent">
+                        <i class="fa-solid fa-barcode"></i>
+                        <span>Scanner Fisik / Gun</span>
+                    </button>
+                    <button id="tabBtnBulk" onclick="switchScanMode('bulk')" class="tab-btn px-4 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-900 rounded-t-lg transition flex items-center gap-2 border-b-2 border-transparent">
+                        <i class="fa-solid fa-paste"></i>
+                        <span>Tempel Massal (Paste)</span>
+                    </button>
+                </div>
+
+                <!-- Courier / Resi Selection Filter -->
+                <div class="pb-2 flex items-center gap-2 w-full sm:w-auto">
+                    <label for="filterCourierSelect" class="text-xs font-semibold text-slate-600 flex items-center gap-1 shrink-0">
+                        <i class="fa-solid fa-filter text-brand-500"></i>
+                        <span>Pilihan Resi:</span>
+                    </label>
+                    <select id="filterCourierSelect" onchange="onCourierFilterChange()" class="w-full sm:w-48 text-xs font-semibold bg-white border border-brand-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 rounded-lg px-2.5 py-1.5 text-slate-800 shadow-xs transition">
+                        <option value="ALL">Semua Jenis Resi / Kurir</option>
+                        <option value="J&T Express">J&T Express (JP/JX/TJ/EZ)</option>
+                        <option value="Shopee Xpress">Shopee Xpress (SPX/SPXID)</option>
+                        <option value="JNE">JNE Express (TJNE/CGK)</option>
+                        <option value="SiCepat">SiCepat Express (00.../TKP)</option>
+                        <option value="Anteraja">Anteraja (1000...)</option>
+                        <option value="ID Express">ID Express (IDE...)</option>
+                        <option value="Ninja Xpress">Ninja Xpress (NLID...)</option>
+                        <option value="Lazada Express">Lazada Express (LEX...)</option>
+                        <option value="POS Indonesia">POS Indonesia (P2...)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tab Content Panels -->
+            <div class="p-5">
+                <!-- Panel 1: Camera Scanner Mode (HTML5 Primary) -->
+                <div id="panelCamera" class="space-y-4">
+                    <!-- Dynamic Camera Status / Error Alert Banner -->
+                    <div id="cameraStatusAlert" class="hidden p-3 rounded-xl text-xs font-medium transition-all"></div>
+
+                    <div class="max-w-lg mx-auto relative bg-slate-900 rounded-2xl overflow-hidden shadow-lg border border-slate-800">
+                        <div id="reader" class="w-full min-h-[280px]"></div>
+                        <div id="cameraPlaceholder" class="p-8 text-center text-slate-400 space-y-3">
+                            <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto text-brand-400 text-2xl shadow-inner">
+                                <i class="fa-solid fa-qrcode"></i>
+                            </div>
+                            <h3 class="text-sm font-bold text-white">Scanner Kamera HTML5</h3>
+                            <p class="text-xs text-slate-400 max-w-xs mx-auto">Klik tombol di bawah untuk mengaktifkan pemindaian otomatis barcode resi via kamera perangkat Anda.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap justify-center items-center gap-3">
+                        <button id="btnStartCamera" onclick="startCamera()" class="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white font-semibold rounded-xl text-sm shadow-md transition flex items-center gap-2">
+                            <i class="fa-solid fa-camera"></i>
+                            <span>Nyalakan Kamera</span>
+                        </button>
+                        <button id="btnStopCamera" onclick="stopCamera()" class="hidden px-5 py-2.5 bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-semibold rounded-xl text-sm shadow-md transition flex items-center gap-2">
+                            <i class="fa-solid fa-stop"></i>
+                            <span>Matikan Kamera</span>
+                        </button>
+
+                        <label class="cursor-pointer px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs border border-slate-300 transition flex items-center gap-2" title="Unggah foto/gambar resi jika kamera error">
+                            <i class="fa-solid fa-file-image text-brand-500"></i>
+                            <span>Scan dari File / Foto</span>
+                            <input type="file" id="qrFileInput" accept="image/*" onchange="scanImageFile(this)" class="hidden">
+                        </label>
+
+                        <select id="cameraSelect" onchange="switchCameraDevice(this.value)" class="hidden text-xs bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500 max-w-[200px]">
+                            <option value="">Ganti Kamera...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Panel 2: Barcode Scanner Gun / Hardware Input Mode -->
+                <div id="panelGun" class="hidden space-y-4">
+                    <div class="flex flex-col sm:flex-row items-center gap-3">
+                        <div class="relative flex-1 w-full">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                <i class="fa-solid fa-bolt text-lg text-amber-500 animate-pulse"></i>
+                            </div>
+                            <input type="text" id="gunInput" autocomplete="off" placeholder="Arahkan barcode scanner / ketik resi lalu Tekan Enter..." 
+                                class="w-full pl-11 pr-24 py-3.5 bg-slate-50 border-2 border-brand-500 focus:bg-white text-slate-900 font-mono text-base rounded-xl focus:outline-none focus:ring-4 focus:ring-brand-500/20 transition shadow-inner">
+                            <button onclick="processGunInput()" class="absolute right-2 top-2 bottom-2 px-4 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm rounded-lg transition shadow flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Tambah</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100 gap-2">
+                        <span class="flex items-center gap-1.5 font-medium text-slate-700">
+                            <i class="fa-solid fa-circle-info text-brand-500"></i>
+                            Mode Siap Tembak Scanner: Input ini selalu fokus otomatis. Scan beruntun tanpa perlu klik mouse.
+                        </span>
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox" id="chkAutoLockFocus" checked class="w-4 h-4 text-brand-500 rounded border-slate-300 focus:ring-brand-500">
+                            <span class="text-slate-600 font-medium">Kunci Fokus Otomatis</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Panel 3: Bulk Textarea Paste Mode -->
+                <div id="panelBulk" class="hidden space-y-4">
+                    <div>
+                        <label for="bulkInput" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Tempelkan Daftar Resi (Pisahkan Baris Baru atau Koma):</label>
+                        <textarea id="bulkInput" rows="5" placeholder="Contoh:&#10;JP1234567890&#10;004561239871&#10;SPXID02938491823&#10;NLID987654321" 
+                            class="w-full p-3.5 bg-slate-50 border border-slate-300 focus:bg-white text-slate-900 font-mono text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 transition"></textarea>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <p class="text-xs text-slate-500">Setiap baris akan diproses dan diidentifikasi kurirnya secara otomatis.</p>
+                        <button onclick="processBulkInput()" class="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-lg text-sm shadow transition flex items-center gap-2">
+                            <i class="fa-solid fa-file-import"></i>
+                            <span>Proses & Masukkan List</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scanned Data List & Local Storage Table Container -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <!-- Table Header Bar -->
+            <div class="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-slate-800 text-white rounded-lg">
+                        <i class="fa-solid fa-database text-base"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="font-bold text-slate-800 text-base">Daftar Hasil Scan Lokal</h2>
+                            <span id="scanCountBadge" class="bg-brand-100 text-brand-700 text-xs font-bold px-2.5 py-0.5 rounded-full">0 Item</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Data tersimpan aman di browser internal (Lokal Storage)</p>
+                    </div>
+                </div>
+
+                <!-- Batch Selector & Search Bar -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="relative min-w-[180px]">
+                        <select id="batchSelect" onchange="changeBatch(this.value)" class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-lg px-3 py-2 pr-8 text-slate-700 focus:ring-2 focus:ring-brand-500 focus:outline-none shadow-xs">
+                            <!-- Populated via JS -->
+                        </select>
+                    </div>
+                    <button onclick="createNewBatchPrompt()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg border border-slate-300 transition flex items-center gap-1.5" title="Buat Batch Baru">
+                        <i class="fa-solid fa-folder-plus text-slate-600"></i>
+                        <span class="hidden sm:inline">Batch Baru</span>
+                    </button>
+                    <div class="relative">
+                        <input type="text" id="searchInput" oninput="renderTable()" placeholder="Cari resi/kurir..." class="pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none w-36 sm:w-48">
+                        <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Toolbar (Google Sheets Export & Download) -->
+            <div class="p-3 bg-slate-100/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- Google Sheets Sync Button -->
+                    <button onclick="sendDataToGoogleSheets()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-sm transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span>Kirim ke Google Sheets</span>
+                    </button>
+
+                    <!-- Export Options Dropdown / Quick Buttons -->
+                    <button onclick="exportToExcel()" class="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-lg border border-slate-300 shadow-2xs transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-download text-emerald-600"></i>
+                        <span>Download Excel (.xlsx)</span>
+                    </button>
+                    <button onclick="exportToCSV()" class="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-lg border border-slate-300 shadow-2xs transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-csv text-blue-600"></i>
+                        <span>CSV</span>
+                    </button>
+                    <button onclick="copyTableToClipboard()" class="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-lg border border-slate-300 shadow-2xs transition flex items-center gap-1.5" title="Salin format tabel untuk langsung dipaste di Google Sheets">
+                        <i class="fa-solid fa-copy text-indigo-600"></i>
+                        <span>Salin (Paste ke Sheets)</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="clearCurrentBatchConfirm()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold rounded-lg border border-rose-200 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <span>Kosongkan Batch</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scanned Table View -->
+            <div class="overflow-x-auto min-h-[300px] max-h-[500px]">
+                <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+                            <th class="p-3 w-12 text-center">#</th>
+                            <th class="p-3">Nomor Resi</th>
+                            <th class="p-3">Kurir (Deteksi)</th>
+                            <th class="p-3">Waktu Scan</th>
+                            <th class="p-3">Keterangan / Tag</th>
+                            <th class="p-3 text-center w-24">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scanTableBody" class="divide-y divide-slate-100 text-slate-700 font-medium">
+                        <!-- Table rows populated dynamically via JavaScript -->
+                    </tbody>
+                </table>
+
+                <!-- Empty State Placeholder -->
+                <div id="emptyState" class="hidden p-12 text-center text-slate-400 space-y-3">
+                    <i class="fa-solid fa-inbox text-4xl text-slate-300"></i>
+                    <p class="text-sm font-semibold text-slate-600">Belum Ada Resi Di-scan dalam Batch Ini</p>
+                    <p class="text-xs text-slate-400 max-w-sm mx-auto">Gunakan barcode scanner gun, kamera HP, atau tempelkan daftar resi untuk mulai mengumpulkan data.</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all">
+            <div class="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-gear text-brand-400"></i>
+                    <span>Pengaturan Aplikasi & Webhook</span>
+                </h3>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4 text-sm">
+                <div>
+                    <label class="block font-semibold text-slate-800 mb-1">Google Apps Script Webhook URL:</label>
+                    <input type="url" id="webhookUrlInput" placeholder="https://script.google.com/macros/s/.../exec"
+                        class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none text-xs font-mono">
+                    <p class="text-[11px] text-slate-500 mt-1">URL ini didapat dari hasil Deploy Google Apps Script Web App. <button onclick="closeSettingsModal(); openAppsScriptGuideModal();" class="text-brand-600 font-semibold underline">Lihat Cara Buat</button></p>
+                </div>
+
+                <div class="border-t border-slate-200 pt-4 space-y-3">
+                    <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider">Opsi Pemindaian & Suara</h4>
+                    <label class="flex items-center justify-between cursor-pointer">
+                        <span class="text-slate-700">Bunyi Beep Saat Scan Berhasil</span>
+                        <input type="checkbox" id="chkSoundBeep" checked class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500">
+                    </label>
+                    <label class="flex items-center justify-between cursor-pointer">
+                        <span class="text-slate-700">Cegah Scan Duplikat (Satu Batch)</span>
+                        <input type="checkbox" id="chkPreventDuplicate" checked class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500">
+                    </label>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-6 py-3 flex justify-end gap-2 border-t border-slate-200">
+                <button onclick="closeSettingsModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold rounded-lg text-xs transition">Batal</button>
+                <button onclick="saveSettings()" class="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-lg text-xs shadow transition">Simpan Pengaturan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Google Apps Script Tutorial Modal -->
+    <div id="guideModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="bg-emerald-700 px-6 py-4 text-white flex items-center justify-between">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-file-code"></i>
+                    <span>Panduan Integrasi Google Sheets (100% Gratis)</span>
+                </h3>
+                <button onclick="closeAppsScriptGuideModal()" class="text-white/80 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4 text-xs text-slate-700 leading-relaxed">
+                <p>Agar tombol <strong>"Kirim ke Google Sheets"</strong> secara otomatis membuat **Sheet/Tab Baru Sesuai Tanggal Hari Ini (contoh: 22-08-2026)**, ikuti langkah berikut:</p>
+                
+                <ol class="list-decimal pl-4 space-y-2 font-medium">
+                    <li>Buka Google Sheets Anda. Pilih menu <strong>Extensions (Ekstensi) &gt; Apps Script</strong>.</li>
+                    <li>Ganti semua kode bawaan dengan **Copy & Paste kode script** terbaru di bawah ini:</li>
+                </ol>
+
+                <div class="relative">
+                    <pre class="bg-slate-900 text-emerald-400 p-3 rounded-lg overflow-x-auto text-[11px] font-mono select-all">
+function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var data = JSON.parse(e.postData.contents);
+    
+    // Gunakan tanggal dari pengiriman data atau tanggal sistem hari ini (Format: DD-MM-YYYY)
+    var dateStr = data.dateStr || Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "dd-MM-yyyy");
+    
+    // Cari tab sheet sesuai nama tanggal hari ini, jika belum ada buat tab baru!
+    var sheet = ss.getSheetByName(dateStr);
+    if (!sheet) {
+      sheet = ss.insertSheet(dateStr);
+    }
+    
+    // Tambah Header jika tab sheet masih kosong baru dibuat
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(["No", "Nomor Resi", "Kurir", "Waktu Scan", "Batch", "Keterangan"]);
+      sheet.getRange(1, 1, 1, 6).setFontWeight("bold").setBackground("#e0f2fe");
+      sheet.setFrozenRows(1);
+    }
+    
+    var items = data.items;
+    var startNo = sheet.getLastRow() === 1 ? 1 : sheet.getLastRow();
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      sheet.appendRow([
+        startNo + i,
+        item.resi,
+        item.courier,
+        item.timestamp,
+        data.batchName || "Batch",
+        item.note || "-"
+      ]);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({result: "success", count: items.length, sheet: dateStr}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(error) {
+    return ContentService.createTextOutput(JSON.stringify({result: "error", error: error.toString()}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}</pre>
+                    <button onclick="copyAppsScriptCode()" class="absolute top-2 right-2 bg-slate-800 hover:bg-slate-700 text-white px-2.5 py-1 rounded text-[10px] font-semibold flex items-center gap-1 border border-slate-700">
+                        <i class="fa-solid fa-copy"></i> Copy Script
+                    </button>
+                </div>
+
+                <ol start="3" class="list-decimal pl-4 space-y-2 font-medium">
+                    <li>Klik <strong>Deploy (Terapkan) &gt; New Deployment (Penerapan baru)</strong> (atau <i>Manage Deployments</i> lalu edit/versi baru).</li>
+                    <li>Pilih jenis <strong>Web App (Aplikasi Web)</strong>.
+                        <ul class="list-disc pl-4 mt-1 font-normal text-slate-600">
+                            <li>Execute as: <strong>Me (Saya)</strong></li>
+                            <li>Who has access: <strong>Anyone (Siapa saja)</strong></li>
+                        </ul>
+                    </li>
+                    <li>Klik <strong>Deploy</strong>, izinkan akses Google, lalu pastekan Web App URL ke menu <strong>Pengaturan</strong> web ini. Selesai!</li>
+                </ol>
+            </div>
+            <div class="bg-slate-50 px-6 py-3 flex justify-end border-t border-slate-200">
+                <button onclick="closeAppsScriptGuideModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-lg text-xs transition">Mengerti & Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- APP STATE & STORAGE INITIALIZATION ---
+        const LOCAL_STORAGE_KEY_BATCHES = 'resi_scan_batches_v1';
+        const LOCAL_STORAGE_KEY_ACTIVE_BATCH = 'resi_scan_active_batch_id';
+        const LOCAL_STORAGE_KEY_SETTINGS = 'resi_scan_settings_v1';
+
+        const DEFAULT_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrWLu7FzUO93b0DpvIy2s7vrextmWvdNTjSqYVbrXWZGyVXR5-ILGepmOp5vq389ge-A/exec';
+
+        let batches = {};
+        let activeBatchId = '';
+        let settings = {
+            webhookUrl: DEFAULT_WEBHOOK_URL,
+            soundBeep: true,
+            preventDuplicate: true
+        };
+
+        let html5QrcodeScanner = null;
+        let isScannerRunning = false;
+
+        // --- AUDIO SOUND GENERATOR (Web Audio API) ---
+        function playBeepSound(type = 'success') {
+            if (!settings.soundBeep) return;
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'success') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.12);
+                } else if (type === 'error') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.25);
+                }
+            } catch (e) {
+                console.warn('Audio playback not supported or user gesture required', e);
+            }
+        }
+
+        // --- COURIER AUTO-DETECTION ENGINE ---
+        function detectCourier(resi) {
+            const code = resi.trim().toUpperCase();
+            
+            if (/^JP\d+/i.test(code) || /^JX\d+/i.test(code) || /^TJ\d+/i.test(code) || /^EZ\d+/i.test(code)) {
+                return { name: 'J&T Express', color: 'bg-red-100 text-red-700 border-red-200' };
+            }
+            if (/^SPXID\d+/i.test(code) || /^SPX\d+/i.test(code)) {
+                return { name: 'Shopee Xpress', color: 'bg-orange-100 text-orange-700 border-orange-200' };
+            }
+            if (/^00\d{10}/.test(code) || /^TKP\d+/i.test(code) || /^SIG\d+/i.test(code)) {
+                return { name: 'SiCepat', color: 'bg-red-50 text-red-600 border-red-200' };
+            }
+            if (/^TJNE\d+/i.test(code) || /^CGK\d+/i.test(code) || /^\d{15,16}$/.test(code)) {
+                return { name: 'JNE', color: 'bg-blue-100 text-blue-700 border-blue-200' };
+            }
+            if (/^1000\d+/i.test(code) || /^1001\d+/i.test(code) || /^\d{14}$/.test(code)) {
+                return { name: 'Anteraja', color: 'bg-pink-100 text-pink-700 border-pink-200' };
+            }
+            if (/^IDE\d+/i.test(code)) {
+                return { name: 'ID Express', color: 'bg-rose-100 text-rose-700 border-rose-200' };
+            }
+            if (/^NLID\d+/i.test(code) || /^SHP\d+/i.test(code)) {
+                return { name: 'Ninja Xpress', color: 'bg-stone-100 text-stone-800 border-stone-200' };
+            }
+            if (/^LEX\d+/i.test(code) || /^LXAD\d+/i.test(code)) {
+                return { name: 'Lazada Express', color: 'bg-purple-100 text-purple-700 border-purple-200' };
+            }
+            if (/^P2\d+/i.test(code) || /^\d{11}$/.test(code)) {
+                return { name: 'POS Indonesia', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+            }
+            if (/^GK-/i.test(code) || /^GL-/i.test(code)) {
+                return { name: 'Gojek / Grab', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+            }
+
+            return { name: 'Umum / Lainnya', color: 'bg-slate-100 text-slate-700 border-slate-200' };
+        }
+
+        // --- STREAMING_CHUNK:Handling data state persistence and CRUD operations... ---
+        // Load data from LocalStorage
+        function loadState() {
+            try {
+                const savedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
+                if (savedSettings) {
+                    settings = { ...settings, ...JSON.parse(savedSettings) };
+                    if (!settings.webhookUrl) {
+                        settings.webhookUrl = DEFAULT_WEBHOOK_URL;
+                    }
+                }
+
+                const savedBatches = localStorage.getItem(LOCAL_STORAGE_KEY_BATCHES);
+                if (savedBatches) batches = JSON.parse(savedBatches);
+
+                activeBatchId = localStorage.getItem(LOCAL_STORAGE_KEY_ACTIVE_BATCH) || '';
+
+                // Ensure at least one default batch exists
+                if (Object.keys(batches).length === 0) {
+                    const defaultId = 'batch_' + Date.now();
+                    const dateStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                    batches[defaultId] = {
+                        id: defaultId,
+                        name: `Batch Scan (${dateStr})`,
+                        created: new Date().toISOString(),
+                        items: []
+                    };
+                    activeBatchId = defaultId;
+                } else if (!batches[activeBatchId]) {
+                    activeBatchId = Object.keys(batches)[0];
+                }
+
+                saveState();
+            } catch (e) {
+                console.error("Error loading state:", e);
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(settings));
+            localStorage.setItem(LOCAL_STORAGE_KEY_BATCHES, JSON.stringify(batches));
+            localStorage.setItem(LOCAL_STORAGE_KEY_ACTIVE_BATCH, activeBatchId);
+        }
+
+        // Add scanned items into current active batch
+        function addResiItems(resiArray, tagNote = '') {
+            if (!activeBatchId || !batches[activeBatchId]) return;
+
+            const currentBatch = batches[activeBatchId];
+            let addedCount = 0;
+            let duplicateCount = 0;
+            let filteredOutCount = 0;
+
+            const selectedCourierFilter = document.getElementById('filterCourierSelect') ? document.getElementById('filterCourierSelect').value : 'ALL';
+            const existingCodes = new Set(currentBatch.items.map(item => item.resi.toLowerCase()));
+
+            resiArray.forEach(rawResi => {
+                const resi = rawResi.trim().toUpperCase();
+                if (!resi) return;
+
+                const courierInfo = detectCourier(resi);
+
+                // Filter by chosen resi / courier type if not ALL
+                if (selectedCourierFilter !== 'ALL' && courierInfo.name !== selectedCourierFilter) {
+                    filteredOutCount++;
+                    return;
+                }
+
+                if (settings.preventDuplicate && existingCodes.has(resi.toLowerCase())) {
+                    duplicateCount++;
+                    return;
+                }
+
+                const newItem = {
+                    id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                    resi: resi,
+                    courier: courierInfo.name,
+                    courierColor: courierInfo.color,
+                    timestamp: new Date().toLocaleString('id-ID'),
+                    note: tagNote || (selectedCourierFilter !== 'ALL' ? `Resi ${selectedCourierFilter}` : '-')
+                };
+
+                currentBatch.items.unshift(newItem); // Add to top
+                existingCodes.add(resi.toLowerCase());
+                addedCount++;
+            });
+
+            if (addedCount > 0) {
+                saveState();
+                renderAll();
+                playBeepSound('success');
+                showToast(`Berhasil menambahkan ${addedCount} nomor resi.`, 'success');
+            } else if (duplicateCount > 0) {
+                playBeepSound('error');
+                showToast(`Nomor resi duplikat terdeteksi dan diabaikan.`, 'warning');
+            } else if (filteredOutCount > 0) {
+                playBeepSound('error');
+                showToast(`Resi diabaikan karena bukan jenis resi ${selectedCourierFilter}.`, 'warning');
+            }
+        }
+
+        function onCourierFilterChange() {
+            renderTable();
+            showToast(`Saringan Pilihan Resi diperbarui.`, 'info');
+        }
+
+        function deleteItem(itemId) {
+            if (!activeBatchId || !batches[activeBatchId]) return;
+            batches[activeBatchId].items = batches[activeBatchId].items.filter(i => i.id !== itemId);
+            saveState();
+            renderAll();
+            showToast('Resi berhasil dihapus dari list.', 'info');
+        }
+
+        function updateItemNote(itemId, note) {
+            if (!activeBatchId || !batches[activeBatchId]) return;
+            const item = batches[activeBatchId].items.find(i => i.id === itemId);
+            if (item) {
+                item.note = note;
+                saveState();
+            }
+        }
+
+        // --- STREAMING_CHUNK:Rendering user interface tables and stats... ---
+        function renderAll() {
+            renderBatchDropdown();
+            renderStats();
+            renderTable();
+        }
+
+        function renderBatchDropdown() {
+            const select = document.getElementById('batchSelect');
+            select.innerHTML = '';
+            Object.values(batches).forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.id;
+                opt.textContent = `${b.name} (${b.items.length})`;
+                if (b.id === activeBatchId) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        function renderStats() {
+            const currentBatch = batches[activeBatchId] || { items: [] };
+            const items = currentBatch.items;
+
+            document.getElementById('statTotalScanned').textContent = items.length;
+            
+            const uniqueResis = new Set(items.map(i => i.resi.toLowerCase()));
+            document.getElementById('statUniqueScanned').textContent = uniqueResis.size;
+
+            // Top courier calculation
+            const courierCounts = {};
+            items.forEach(i => {
+                courierCounts[i.courier] = (courierCounts[i.courier] || 0) + 1;
+            });
+            let topCourier = '-';
+            let maxCount = 0;
+            Object.entries(courierCounts).forEach(([courier, count]) => {
+                if (count > maxCount) {
+                    maxCount = count;
+                    topCourier = courier;
+                }
+            });
+            document.getElementById('statTopCourier').textContent = topCourier;
+
+            // Sheet sync indicator status
+            const syncBadge = document.getElementById('sheetsSyncBadge');
+            if (settings.webhookUrl) {
+                syncBadge.className = 'flex items-center gap-1.5 mt-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md w-max';
+                syncBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span>Siap Sync</span>`;
+            } else {
+                syncBadge.className = 'flex items-center gap-1.5 mt-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md w-max';
+                syncBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span><span>Belum Set Script</span>`;
+            }
+
+            document.getElementById('scanCountBadge').textContent = `${items.length} Resi`;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('scanTableBody');
+            const emptyState = document.getElementById('emptyState');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const courierFilter = document.getElementById('filterCourierSelect') ? document.getElementById('filterCourierSelect').value : 'ALL';
+
+            const currentBatch = batches[activeBatchId] || { items: [] };
+            let items = currentBatch.items;
+
+            if (courierFilter !== 'ALL') {
+                items = items.filter(i => i.courier === courierFilter);
+            }
+
+            if (searchTerm) {
+                items = items.filter(i => 
+                    i.resi.toLowerCase().includes(searchTerm) || 
+                    i.courier.toLowerCase().includes(searchTerm) ||
+                    i.note.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            tbody.innerHTML = '';
+
+            if (items.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            items.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+                tr.innerHTML = `
+                    <td class="p-3 text-center text-slate-400 font-mono text-xs">${items.length - index}</td>
+                    <td class="p-3 font-mono font-bold text-slate-800 tracking-wider">${escapeHtml(item.resi)}</td>
+                    <td class="p-3">
+                        <span class="inline-block px-2.5 py-1 rounded-md text-[11px] font-semibold border ${item.courierColor}">
+                            ${escapeHtml(item.courier)}
+                        </span>
+                    </td>
+                    <td class="p-3 text-slate-500 text-xs font-mono">${escapeHtml(item.timestamp)}</td>
+                    <td class="p-3">
+                        <input type="text" value="${escapeHtml(item.note !== '-' ? item.note : '')}" placeholder="Tambah catatan..."
+                            onchange="updateItemNote('${item.id}', this.value)"
+                            class="bg-transparent hover:bg-white focus:bg-white px-2 py-1 rounded border border-transparent hover:border-slate-300 focus:border-brand-500 focus:outline-none text-xs w-full transition">
+                    </td>
+                    <td class="p-3 text-center">
+                        <button onclick="deleteItem('${item.id}')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition" title="Hapus resi">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- STREAMING_CHUNK:Handling scanner inputs (Gun, Camera, Bulk)... ---
+        // Gun Input Handler
+        function processGunInput() {
+            const input = document.getElementById('gunInput');
+            const val = input.value.trim();
+            if (val) {
+                addResiItems([val]);
+                input.value = '';
+            }
+            input.focus();
+        }
+
+        document.getElementById('gunInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                processGunInput();
+            }
+        });
+
+        // Bulk Input Handler
+        function processBulkInput() {
+            const input = document.getElementById('bulkInput');
+            const val = input.value.trim();
+            if (!val) return;
+            const resiList = val.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+            if (resiList.length > 0) {
+                addResiItems(resiList);
+                input.value = '';
+            }
+        }
+
+        // Camera Scanner Handlers & Error Handling Engine
+        let lastScannedText = '';
+        let lastScanTime = 0;
+
+        function showCameraStatus(msg, type = 'info') {
+            const alertBox = document.getElementById('cameraStatusAlert');
+            if (!alertBox) return;
+            alertBox.classList.remove('hidden', 'bg-rose-100', 'text-rose-800', 'border-rose-300', 'bg-amber-100', 'text-amber-800', 'border-amber-300', 'bg-emerald-100', 'text-emerald-800', 'border-emerald-300');
+            
+            if (type === 'error') {
+                alertBox.className = 'p-3 rounded-xl text-xs font-medium bg-rose-100 text-rose-800 border border-rose-300 flex items-center justify-between gap-2';
+            } else if (type === 'warning') {
+                alertBox.className = 'p-3 rounded-xl text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-between gap-2';
+            } else {
+                alertBox.className = 'p-3 rounded-xl text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center justify-between gap-2';
+            }
+            alertBox.innerHTML = `<span>${escapeHtml(msg)}</span><button onclick="document.getElementById('cameraStatusAlert').classList.add('hidden')" class="font-bold opacity-60 hover:opacity-100">&times;</button>`;
+        }
+
+        async function startCamera() {
+            if (!window.isSecureContext && location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                showCameraStatus('⚠️ Kamera membutuhkan jaringan HTTPS atau koneksi lokal aman. Anda juga dapat menggunakan opsi "Scan dari File / Foto".', 'warning');
+            }
+
+            const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+            if (cameraPlaceholder) cameraPlaceholder.classList.add('hidden');
+
+            if (isScannerRunning && html5QrcodeScanner) {
+                try {
+                    await html5QrcodeScanner.stop();
+                } catch(e) {}
+                isScannerRunning = false;
+            }
+
+            if (!html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5Qrcode("reader");
+            }
+
+            showToast('Mengakses kamera...', 'info');
+
+            const cameraConfig = {
+                fps: 20,
+                qrbox: { width: 280, height: 160 },
+                aspectRatio: 1.777778
+            };
+
+            const qrCodeSuccessCallback = (decodedText) => {
+                const now = Date.now();
+                if (decodedText === lastScannedText && (now - lastScanTime) < 1500) {
+                    return;
+                }
+                lastScannedText = decodedText;
+                lastScanTime = now;
+                addResiItems([decodedText]);
+            };
+
+            // Attempt 1: Launch directly with environment (rear) camera facingMode
+            html5QrcodeScanner.start(
+                { facingMode: "environment" },
+                cameraConfig,
+                qrCodeSuccessCallback,
+                () => {}
+            ).then(() => {
+                isScannerRunning = true;
+                document.getElementById('btnStartCamera').classList.add('hidden');
+                document.getElementById('btnStopCamera').classList.remove('hidden');
+                showCameraStatus('✅ Kamera aktif! Arahkan barcode/QR resi ke area pemindai.', 'success');
+                
+                // Fetch list of camera devices for switching
+                Html5Qrcode.getCameras().then(devices => {
+                    if (devices && devices.length > 1) {
+                        const select = document.getElementById('cameraSelect');
+                        select.innerHTML = '<option value="">Ganti Kamera...</option>';
+                        devices.forEach((dev, idx) => {
+                            const opt = document.createElement('option');
+                            opt.value = dev.id;
+                            opt.textContent = dev.label || `Kamera ${idx + 1}`;
+                            select.appendChild(opt);
+                        });
+                        select.classList.remove('hidden');
+                    }
+                }).catch(() => {});
+            }).catch(err => {
+                console.warn("Direct environment camera failed, trying explicitly enumerated devices...", err);
+                
+                // Attempt 2: Fallback to enumerated devices
+                Html5Qrcode.getCameras().then(devices => {
+                    if (devices && devices.length > 0) {
+                        const firstCam = devices[0].id;
+                        html5QrcodeScanner.start(
+                            firstCam,
+                            cameraConfig,
+                            qrCodeSuccessCallback,
+                            () => {}
+                        ).then(() => {
+                            isScannerRunning = true;
+                            document.getElementById('btnStartCamera').classList.add('hidden');
+                            document.getElementById('btnStopCamera').classList.remove('hidden');
+                            showCameraStatus('✅ Kamera aktif!', 'success');
+                        }).catch(e => handleCameraError(e));
+                    } else {
+                        handleCameraError("Tidak ada kamera terdeteksi pada perangkat.");
+                    }
+                }).catch(e => handleCameraError(e || err));
+            });
+        }
+
+        function handleCameraError(err) {
+            const errStr = String(err || '');
+            let message = 'Gagal membuka kamera.';
+
+            if (errStr.includes('NotAllowedError') || errStr.includes('Permission denied')) {
+                message = '🚫 Izin Kamera Ditolak! Izinkan akses kamera pada browser Anda (klik ikon gembok pada alamat web/URL).';
+            } else if (errStr.includes('NotFoundError') || errStr.includes('DevicesNotFoundError')) {
+                message = '📷 Perangkat kamera tidak ditemukan pada HP/Komputer ini.';
+            } else if (errStr.includes('NotReadableError') || errStr.includes('TrackStartError')) {
+                message = '⚠️ Kamera sedang digunakan oleh aplikasi lain (seperti WhatsApp, Zoom, atau aplikasi kamera). Tutup aplikasi tersebut lalu coba lagi.';
+            } else if (errStr.includes('SecureContext') || location.protocol === 'http:') {
+                message = '🔒 Kamera diblokir browser karena koneksi HTTP tidak aman (membutuhkan HTTPS). Silakan gunakan tombol "Scan dari File / Foto".';
+            } else {
+                message = `❌ Error Kamera: ${errStr || 'Gagal terhubung'}. Gunakan tombol "Scan dari File / Foto" di samping sebagai alternatif.`;
+            }
+
+            showCameraStatus(message, 'error');
+            showToast('Kamera Error', 'error');
+            if (document.getElementById('cameraPlaceholder')) {
+                document.getElementById('cameraPlaceholder').classList.remove('hidden');
+            }
+        }
+
+        function scanImageFile(input) {
+            if (!input.files || input.files.length === 0) return;
+            const file = input.files[0];
+            
+            showToast('Membaca file gambar resi...', 'info');
+
+            const html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.scanFile(file, true)
+                .then(decodedText => {
+                    addResiItems([decodedText]);
+                    showToast('✅ Barcode resi berhasil dibaca dari foto!', 'success');
+                    input.value = '';
+                })
+                .catch(err => {
+                    showToast('❌ Barcode tidak terdeteksi pada gambar. Pastikan gambar resi jelas dan terang.', 'error');
+                    input.value = '';
+                });
+        }
+
+        function switchCameraDevice(cameraId) {
+            if (!cameraId) return;
+            if (isScannerRunning && html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    isScannerRunning = false;
+                    startCameraStream(cameraId);
+                });
+            } else {
+                startCameraStream(cameraId);
+            }
+        }
+
+        function startCameraStream(cameraId) {
+            const config = {
+                fps: 20,
+                qrbox: { width: 280, height: 160 },
+                aspectRatio: 1.777778
+            };
+
+            html5QrcodeScanner.start(
+                cameraId,
+                config,
+                (decodedText) => {
+                    const now = Date.now();
+                    if (decodedText === lastScannedText && (now - lastScanTime) < 1500) {
+                        return;
+                    }
+                    lastScannedText = decodedText;
+                    lastScanTime = now;
+                    addResiItems([decodedText]);
+                },
+                () => {}
+            ).then(() => {
+                isScannerRunning = true;
+                document.getElementById('btnStartCamera').classList.add('hidden');
+                document.getElementById('btnStopCamera').classList.remove('hidden');
+                showCameraStatus('✅ Kamera aktif!', 'success');
+            }).catch(err => {
+                handleCameraError(err);
+            });
+        }
+
+        function stopCamera() {
+            if (html5QrcodeScanner && isScannerRunning) {
+                html5QrcodeScanner.stop().then(() => {
+                    isScannerRunning = false;
+                    document.getElementById('cameraPlaceholder').classList.remove('hidden');
+                    document.getElementById('btnStartCamera').classList.remove('hidden');
+                    document.getElementById('btnStopCamera').classList.add('hidden');
+                    document.getElementById('cameraSelect').classList.add('hidden');
+                    document.getElementById('cameraStatusAlert').classList.add('hidden');
+                }).catch(() => {});
+            }
+        }
+
+        function switchScanMode(mode) {
+            // Hide all panels
+            document.getElementById('panelGun').classList.add('hidden');
+            document.getElementById('panelCamera').classList.add('hidden');
+            document.getElementById('panelBulk').classList.add('hidden');
+
+            // Reset tab button states
+            ['tabBtnGun', 'tabBtnCamera', 'tabBtnBulk'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.className = 'tab-btn px-4 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-900 rounded-t-lg transition flex items-center gap-2 border-b-2 border-transparent';
+            });
+
+            if (mode === 'camera') {
+                document.getElementById('panelCamera').classList.remove('hidden');
+                const btn = document.getElementById('tabBtnCamera');
+                btn.className = 'tab-btn active px-4 py-2.5 text-sm font-semibold rounded-t-lg transition flex items-center gap-2 border-b-2 border-brand-500 text-brand-600 bg-white shadow-xs';
+            } else if (mode === 'gun') {
+                document.getElementById('panelGun').classList.remove('hidden');
+                const btn = document.getElementById('tabBtnGun');
+                btn.className = 'tab-btn active px-4 py-2.5 text-sm font-semibold rounded-t-lg transition flex items-center gap-2 border-b-2 border-brand-500 text-brand-600 bg-white shadow-xs';
+                setTimeout(() => document.getElementById('gunInput').focus(), 100);
+            } else if (mode === 'bulk') {
+                document.getElementById('panelBulk').classList.remove('hidden');
+                const btn = document.getElementById('tabBtnBulk');
+                btn.className = 'tab-btn active px-4 py-2.5 text-sm font-semibold rounded-t-lg transition flex items-center gap-2 border-b-2 border-brand-500 text-brand-600 bg-white shadow-xs';
+                setTimeout(() => document.getElementById('bulkInput').focus(), 100);
+            }
+
+            if (mode !== 'camera' && isScannerRunning) {
+                stopCamera();
+            }
+        }
+
+        // --- STREAMING_CHUNK:Implementing Google Sheets export and downloads... ---
+        // Direct Sync to Google Sheets via Apps Script Webhook
+        async function sendDataToGoogleSheets() {
+            if (!settings.webhookUrl) {
+                showToast('Google Webhook URL belum diatur! Silakan atur di Pengaturan.', 'error');
+                openSettingsModal();
+                return;
+            }
+
+            const currentBatch = batches[activeBatchId];
+            if (!currentBatch || currentBatch.items.length === 0) {
+                showToast('Tidak ada data resi dalam batch ini untuk dikirim.', 'warning');
+                return;
+            }
+
+            // Format tanggal hari ini (DD-MM-YYYY)
+            const today = new Date();
+            const dd = String(today.getDate()).padStart(2, '0');
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const yyyy = today.getFullYear();
+            const dateStr = `${dd}-${mm}-${yyyy}`;
+
+            showToast(`Mengirim data ke Google Sheets (Tab: ${dateStr})...`, 'info');
+
+            try {
+                const payload = {
+                    dateStr: dateStr,
+                    batchName: currentBatch.name,
+                    items: currentBatch.items
+                };
+
+                // Request via fetch no-cors or JSON depending on script setup
+                const response = await fetch(settings.webhookUrl, {
+                    method: 'POST',
+                    mode: 'no-cors', // Standard cross-origin for Apps Script
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                showToast(`✅ Berhasil mengirim ${currentBatch.items.length} resi ke Tab Sheet "${dateStr}"!`, 'success');
+            } catch (err) {
+                showToast('Gagal menyinkronkan data: ' + err.message, 'error');
+            }
+        }
+
+        // Export to Excel XLSX
+        function exportToExcel() {
+            const currentBatch = batches[activeBatchId];
+            if (!currentBatch || currentBatch.items.length === 0) {
+                showToast('Tidak ada data untuk diexport.', 'warning');
+                return;
+            }
+
+            const data = currentBatch.items.map((item, idx) => ({
+                'No': idx + 1,
+                'Nomor Resi': item.resi,
+                'Kurir': item.courier,
+                'Waktu Scan': item.timestamp,
+                'Keterangan': item.note
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Scan Resi");
+
+            const filename = `${currentBatch.name.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`;
+            XLSX.writeFile(workbook, filename);
+            showToast('File Excel berhasil diunduh.', 'success');
+        }
+
+        // Export to CSV
+        function exportToCSV() {
+            const currentBatch = batches[activeBatchId];
+            if (!currentBatch || currentBatch.items.length === 0) {
+                showToast('Tidak ada data untuk diexport.', 'warning');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,No,Nomor Resi,Kurir,Waktu Scan,Keterangan\n";
+            currentBatch.items.forEach((item, idx) => {
+                csvContent += `"${idx + 1}","${item.resi}","${item.courier}","${item.timestamp}","${item.note}"\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `${currentBatch.name.replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast('File CSV berhasil diunduh.', 'success');
+        }
+
+        // Copy Table Data TSV (Ready to Ctrl+V in Google Sheets)
+        function copyTableToClipboard() {
+            const currentBatch = batches[activeBatchId];
+            if (!currentBatch || currentBatch.items.length === 0) {
+                showToast('Tidak ada data untuk disalin.', 'warning');
+                return;
+            }
+
+            let tsv = "No\tNomor Resi\tKurir\tWaktu Scan\tKeterangan\n";
+            currentBatch.items.forEach((item, idx) => {
+                tsv += `${idx + 1}\t${item.resi}\t${item.courier}\t${item.timestamp}\t${item.note}\n`;
+            });
+
+            // Use ExecCommand fallback for iframe clipboard safety
+            const textArea = document.createElement("textarea");
+            textArea.value = tsv;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Tabel disalin ke clipboard! Silakan paste (Ctrl+V) langsung di Google Sheets.', 'success');
+            } catch (err) {
+                showToast('Gagal menyalin data.', 'error');
+            }
+            document.body.removeChild(textArea);
+        }
+
+        // --- STREAMING_CHUNK:Batch management operations & modal controls... ---
+        function changeBatch(newBatchId) {
+            if (batches[newBatchId]) {
+                activeBatchId = newBatchId;
+                saveState();
+                renderAll();
+            }
+        }
+
+        function createNewBatchPrompt() {
+            const name = prompt("Masukkan nama batch scan baru:", `Batch (${new Date().toLocaleDateString('id-ID')})`);
+            if (name && name.trim()) {
+                const id = 'batch_' + Date.now();
+                batches[id] = {
+                    id: id,
+                    name: name.trim(),
+                    created: new Date().toISOString(),
+                    items: []
+                };
+                activeBatchId = id;
+                saveState();
+                renderAll();
+                showToast(`Batch "${name.trim()}" telah dibuat.`, 'success');
+            }
+        }
+
+        function clearCurrentBatchConfirm() {
+            const currentBatch = batches[activeBatchId];
+            if (!currentBatch || currentBatch.items.length === 0) return;
+
+            if (confirm(`Apakah Anda yakin ingin menghapus seluruh ${currentBatch.items.length} resi pada batch "${currentBatch.name}"?`)) {
+                currentBatch.items = [];
+                saveState();
+                renderAll();
+                showToast('Batch berhasil dikosongkan.', 'info');
+            }
+        }
+
+        // --- MODAL & UI CONTROLLERS ---
+        function openSettingsModal() {
+            document.getElementById('webhookUrlInput').value = settings.webhookUrl || '';
+            document.getElementById('chkSoundBeep').checked = settings.soundBeep;
+            document.getElementById('chkPreventDuplicate').checked = settings.preventDuplicate;
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function saveSettings() {
+            settings.webhookUrl = document.getElementById('webhookUrlInput').value.trim();
+            settings.soundBeep = document.getElementById('chkSoundBeep').checked;
+            settings.preventDuplicate = document.getElementById('chkPreventDuplicate').checked;
+            saveState();
+            closeSettingsModal();
+            renderStats();
+            showToast('Pengaturan berhasil disimpan.', 'success');
+        }
+
+        function openAppsScriptGuideModal() {
+            document.getElementById('guideModal').classList.remove('hidden');
+        }
+
+        function closeAppsScriptGuideModal() {
+            document.getElementById('guideModal').classList.add('hidden');
+        }
+
+        function copyAppsScriptCode() {
+            const code = `function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var data = JSON.parse(e.postData.contents);
+    var dateStr = data.dateStr || Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "dd-MM-yyyy");
+    var sheet = ss.getSheetByName(dateStr);
+    if (!sheet) {
+      sheet = ss.insertSheet(dateStr);
+    }
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(["No", "Nomor Resi", "Kurir", "Waktu Scan", "Batch", "Keterangan"]);
+      sheet.getRange(1, 1, 1, 6).setFontWeight("bold").setBackground("#e0f2fe");
+      sheet.setFrozenRows(1);
+    }
+    var items = data.items;
+    var startNo = sheet.getLastRow() === 1 ? 1 : sheet.getLastRow();
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      sheet.appendRow([startNo + i, item.resi, item.courier, item.timestamp, data.batchName || "Batch", item.note || "-"]);
+    }
+    return ContentService.createTextOutput(JSON.stringify({result: "success", count: items.length, sheet: dateStr})).setMimeType(ContentService.MimeType.JSON);
+  } catch(error) {
+    return ContentService.createTextOutput(JSON.stringify({result: "error", error: error.toString()})).setMimeType(ContentService.MimeType.JSON);
+  }
+}`;
+            const textArea = document.createElement("textarea");
+            textArea.value = code;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showToast('Kode script disalin ke clipboard!', 'success');
+        }
+
+        // --- TOAST NOTIFICATIONS ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            let bg = 'bg-slate-800 text-white';
+            let icon = 'fa-info-circle';
+            if (type === 'success') { bg = 'bg-emerald-600 text-white'; icon = 'fa-circle-check'; }
+            if (type === 'warning') { bg = 'bg-amber-600 text-white'; icon = 'fa-triangle-exclamation'; }
+            if (type === 'error') { bg = 'bg-rose-600 text-white'; icon = 'fa-circle-xmark'; }
+
+            toast.className = `${bg} px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-xs font-semibold transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto border border-white/10`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-base"></i><span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text).replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        // --- APPLICATION INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            renderAll();
+
+            // Set initial focus to gun input
+            setTimeout(() => {
+                const input = document.getElementById('gunInput');
+                if (input) input.focus();
+            }, 300);
+        });
+    </script>
+</body>
+</html>
