@@ -598,7 +598,7 @@ function doPost(e) {
             if (/^00\d{10}/.test(code) || /^(SIG|SICEPAT)\d+/i.test(code)) {
                 return { name: 'SiCepat', code: 'sicepat', color: 'bg-red-50 text-red-600 border-red-200' };
             }
-            if (/^(TJNE|CGK|JNE)\d+/i.test(code) || /^\d{15,16}$/.test(code)) {
+            if (/^(TJNE|CGK|JNE|TG|CM|CW)\d+/i.test(code) || /^\d{15,16}$/.test(code)) {
                 return { name: 'JNE Express', code: 'jne', color: 'bg-blue-100 text-blue-700 border-blue-200' };
             }
             if (/^(1000|1001|SAT)\d+/i.test(code) || /^\d{14}$/.test(code)) {
