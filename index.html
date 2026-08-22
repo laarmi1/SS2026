@@ -589,7 +589,7 @@ function doPost(e) {
             if (/^(JTC|300)\d+/i.test(code)) {
                 return { name: 'J&T Cargo', code: 'jnt_cargo', color: 'bg-red-200 text-red-800 border-red-300' };
             }
-            if (/^(JP|JX|TJ|EZ|JT|JY)\d+/i.test(code)) {
+            if (/^(JP|JX|TJ|EZ|JT|JY|JD)\d+/i.test(code)) {
                 return { name: 'J&T Express', code: 'jnt', color: 'bg-red-100 text-red-700 border-red-200' };
             }
             if (/^SPX(ID)?\d+/i.test(code)) {
