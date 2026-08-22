@@ -162,11 +162,11 @@
                 <!-- Courier / Resi Selection Filter -->
                 <div class="pb-2 flex items-center gap-2 w-full sm:w-auto">
                     <label for="filterCourierSelect" class="text-xs font-semibold text-slate-600 flex items-center gap-1 shrink-0">
-                        <i class="fa-solid fa-filter text-brand-500"></i>
-                        <span>Pilihan Resi:</span>
+                        <i class="fa-solid fa-truck text-brand-500"></i>
+                        <span>Pilihan Kurir Scan:</span>
                     </label>
-                    <select id="filterCourierSelect" onchange="onCourierFilterChange()" class="w-full sm:w-56 text-xs font-semibold bg-white border border-brand-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 rounded-lg px-2.5 py-1.5 text-slate-800 shadow-xs transition">
-                        <option value="ALL">Semua Jenis Resi / Kurir</option>
+                    <select id="filterCourierSelect" class="w-full sm:w-64 text-xs font-semibold bg-white border border-brand-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 rounded-lg px-2.5 py-1.5 text-slate-800 shadow-xs transition">
+                        <option value="AUTO">✨ Otomatis Deteksi Kurir</option>
                         <option value="JNE Express">JNE Express (jne)</option>
                         <option value="POS Indonesia">POS Indonesia (pos)</option>
                         <option value="J&T Express">J&T Express (jnt)</option>
@@ -185,11 +185,11 @@
                         <option value="Shopee Express">Shopee Express (spx)</option>
                         <option value="KGXpress">KGXpress (kgx)</option>
                         <option value="SAP Express">SAP Express (sap)</option>
-                        <option value="RPX">RPX Express (rpx)</option>
+                        <option value="RPX">RPX (rpx)</option>
                         <option value="Lazada Express">Lazada Express (lex)</option>
                         <option value="Indah Cargo">Indah Cargo (indah_cargo)</option>
                         <option value="Dakota Cargo">Dakota Cargo (dakota)</option>
-                        <option value="Kurir Rekomendasi">Kurir Rekomendasi Tokopedia (kurir_tokopedia)</option>
+                        <option value="Kurir Rekomendasi">Kurir Rekomendasi (kurir_tokopedia)</option>
                     </select>
                 </div>
             </div>
@@ -511,6 +511,32 @@ function doPost(e) {
 
         const DEFAULT_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrWLu7FzUO93b0DpvIy2s7vrextmWvdNTjSqYVbrXWZGyVXR5-ILGepmOp5vq389ge-A/exec';
 
+        const COURIER_LIST = [
+            { code: "jne", name: "JNE Express", color: "bg-blue-100 text-blue-700 border-blue-200" },
+            { code: "pos", name: "POS Indonesia", color: "bg-amber-100 text-amber-700 border-amber-200" },
+            { code: "jnt", name: "J&T Express", color: "bg-red-100 text-red-700 border-red-200" },
+            { code: "jnt_cargo", name: "J&T Cargo", color: "bg-red-200 text-red-800 border-red-300" },
+            { code: "sicepat", name: "SiCepat", color: "bg-red-50 text-red-600 border-red-200" },
+            { code: "tiki", name: "TIKI", color: "bg-sky-100 text-sky-800 border-sky-200" },
+            { code: "anteraja", name: "AnterAja", color: "bg-pink-100 text-pink-700 border-pink-200" },
+            { code: "wahana", name: "Wahana", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+            { code: "ninja", name: "Ninja Express", color: "bg-stone-100 text-stone-800 border-stone-200" },
+            { code: "lion", name: "Lion Parcel", color: "bg-rose-100 text-rose-800 border-rose-200" },
+            { code: "pcp", name: "PCP Express", color: "bg-teal-100 text-teal-800 border-teal-200" },
+            { code: "jet", name: "JET Express", color: "bg-cyan-100 text-cyan-800 border-cyan-200" },
+            { code: "rex", name: "REX Express", color: "bg-lime-100 text-lime-800 border-lime-200" },
+            { code: "first", name: "First Logistics", color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+            { code: "ide", name: "ID Express", color: "bg-rose-100 text-rose-700 border-rose-200" },
+            { code: "spx", name: "Shopee Express", color: "bg-orange-100 text-orange-700 border-orange-200" },
+            { code: "kgx", name: "KGXpress", color: "bg-slate-200 text-slate-800 border-slate-300" },
+            { code: "sap", name: "SAP Express", color: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+            { code: "rpx", name: "RPX", color: "bg-amber-200 text-amber-900 border-amber-300" },
+            { code: "lex", name: "Lazada Express", color: "bg-purple-100 text-purple-700 border-purple-200" },
+            { code: "indah_cargo", name: "Indah Cargo", color: "bg-orange-200 text-orange-900 border-orange-300" },
+            { code: "dakota", name: "Dakota Cargo", color: "bg-blue-200 text-blue-900 border-blue-300" },
+            { code: "kurir_tokopedia", name: "Kurir Rekomendasi", color: "bg-green-100 text-green-800 border-green-200" }
+        ];
+
         let batches = {};
         let activeBatchId = '';
         let settings = {
@@ -681,21 +707,27 @@ function doPost(e) {
             const currentBatch = batches[activeBatchId];
             let addedCount = 0;
             let duplicateCount = 0;
-            let filteredOutCount = 0;
 
-            const selectedCourierFilter = document.getElementById('filterCourierSelect') ? document.getElementById('filterCourierSelect').value : 'ALL';
+            const selectedCourier = document.getElementById('filterCourierSelect') ? document.getElementById('filterCourierSelect').value : 'AUTO';
             const existingCodes = new Set(currentBatch.items.map(item => item.resi.toLowerCase()));
 
             resiArray.forEach(rawResi => {
                 const resi = rawResi.trim().toUpperCase();
                 if (!resi) return;
 
-                const courierInfo = detectCourier(resi);
+                let courierName = '';
+                let courierColor = 'bg-slate-100 text-slate-700 border-slate-200';
 
-                // Filter by chosen resi / courier type if not ALL
-                if (selectedCourierFilter !== 'ALL' && courierInfo.name !== selectedCourierFilter) {
-                    filteredOutCount++;
-                    return;
+                // Pengguna menentukan kurir secara langsung
+                if (selectedCourier !== 'AUTO' && selectedCourier !== 'ALL') {
+                    courierName = selectedCourier;
+                    const matched = COURIER_LIST.find(c => c.name === selectedCourier);
+                    if (matched) courierColor = matched.color;
+                } else {
+                    // Fallback ke auto-deteksi jika pengguna memilih opsi "Otomatis Deteksi"
+                    const courierInfo = detectCourier(resi);
+                    courierName = courierInfo.name;
+                    courierColor = courierInfo.color;
                 }
 
                 if (settings.preventDuplicate && existingCodes.has(resi.toLowerCase())) {
@@ -706,10 +738,10 @@ function doPost(e) {
                 const newItem = {
                     id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
                     resi: resi,
-                    courier: courierInfo.name,
-                    courierColor: courierInfo.color,
+                    courier: courierName,
+                    courierColor: courierColor,
                     timestamp: new Date().toLocaleString('id-ID'),
-                    note: tagNote || (selectedCourierFilter !== 'ALL' ? `Resi ${selectedCourierFilter}` : '-')
+                    note: tagNote || '-'
                 };
 
                 currentBatch.items.unshift(newItem); // Add to top
@@ -721,19 +753,11 @@ function doPost(e) {
                 saveState();
                 renderAll();
                 playBeepSound('success');
-                showToast(`Berhasil menambahkan ${addedCount} nomor resi.`, 'success');
+                showToast(`Berhasil menambahkan ${addedCount} nomor resi (${selectedCourier !== 'AUTO' ? selectedCourier : 'Auto'}).`, 'success');
             } else if (duplicateCount > 0) {
                 playBeepSound('error');
                 showToast(`Nomor resi duplikat terdeteksi dan diabaikan.`, 'warning');
-            } else if (filteredOutCount > 0) {
-                playBeepSound('error');
-                showToast(`Resi diabaikan karena bukan jenis resi ${selectedCourierFilter}.`, 'warning');
             }
-        }
-
-        function onCourierFilterChange() {
-            renderTable();
-            showToast(`Saringan Pilihan Resi diperbarui.`, 'info');
         }
 
         function deleteItem(itemId) {
@@ -751,6 +775,28 @@ function doPost(e) {
                 item.note = note;
                 saveState();
             }
+        }
+
+        function updateItemCourier(itemId, newCourierName) {
+            if (!activeBatchId || !batches[activeBatchId]) return;
+            const item = batches[activeBatchId].items.find(i => i.id === itemId);
+            if (item) {
+                item.courier = newCourierName;
+                const matched = COURIER_LIST.find(c => c.name === newCourierName);
+                if (matched) item.courierColor = matched.color;
+                else item.courierColor = 'bg-slate-100 text-slate-700 border-slate-200';
+                saveState();
+                renderStats();
+            }
+        }
+
+        function getCourierOptionsHtml(currentCourier) {
+            let html = `<option value="Umum / Lainnya" ${currentCourier === 'Umum / Lainnya' ? 'selected' : ''}>Umum / Lainnya</option>`;
+            COURIER_LIST.forEach(c => {
+                const selected = c.name === currentCourier ? 'selected' : '';
+                html += `<option value="${escapeHtml(c.name)}" ${selected}>${escapeHtml(c.name)}</option>`;
+            });
+            return html;
         }
 
         // --- STREAMING_CHUNK:Rendering user interface tables and stats... ---
@@ -813,14 +859,9 @@ function doPost(e) {
             const tbody = document.getElementById('scanTableBody');
             const emptyState = document.getElementById('emptyState');
             const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
-            const courierFilter = document.getElementById('filterCourierSelect') ? document.getElementById('filterCourierSelect').value : 'ALL';
 
             const currentBatch = batches[activeBatchId] || { items: [] };
             let items = currentBatch.items;
-
-            if (courierFilter !== 'ALL') {
-                items = items.filter(i => i.courier === courierFilter);
-            }
 
             if (searchTerm) {
                 items = items.filter(i => 
@@ -846,9 +887,10 @@ function doPost(e) {
                     <td class="p-3 text-center text-slate-400 font-mono text-xs">${items.length - index}</td>
                     <td class="p-3 font-mono font-bold text-slate-800 tracking-wider">${escapeHtml(item.resi)}</td>
                     <td class="p-3">
-                        <span class="inline-block px-2.5 py-1 rounded-md text-[11px] font-semibold border ${item.courierColor}">
-                            ${escapeHtml(item.courier)}
-                        </span>
+                        <select onchange="updateItemCourier('${item.id}', this.value)" 
+                            class="text-xs font-semibold rounded-lg border border-slate-300 px-2.5 py-1 bg-white text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none shadow-2xs">
+                            ${getCourierOptionsHtml(item.courier)}
+                        </select>
                     </td>
                     <td class="p-3 text-slate-500 text-xs font-mono">${escapeHtml(item.timestamp)}</td>
                     <td class="p-3">
